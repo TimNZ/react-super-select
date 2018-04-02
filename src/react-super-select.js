@@ -175,6 +175,7 @@ class ReactSuperSelect extends React.Component {
       '_removeSelectedOptionByValue',
       '_removeTagKeyPress',
       '_removeTagClick',
+      '_searchInputChange',
       '_selectAllOptionsInOptionIdRange',
       '_selectAllOptionsToLastUserSelectedOption',
       '_selectFocusedOption',
@@ -401,13 +402,24 @@ class ReactSuperSelect extends React.Component {
     return initialValue;
   }
 
+  _searchInputChange(val,cb)
+  {
+    cb = cb || noop
+    if (isEqual(val,this.state.searchString))
+      return cb(false);
+
+    this.props.onSearchInputChange(val);
+    let newState = {searchString: val}
+    if (this.props.ajaxSearch && this.props.ajaxDataFetch)
+      newState.rawDataSource = undefined
+
+    this.setState(newState, () => cb(true))
+  }
+
   // clear the searchString value
   // for **searchable** controls
   _clearSearchString() {
-    this.setState({
-      searchString: ""
-    }, () => {
-      this.props.onSearchInputChange(this.state.searchString);
+    this._searchInputChange('',() => {
       this._setFocusIdToSearch();
     });
   }
@@ -497,7 +509,7 @@ class ReactSuperSelect extends React.Component {
         return;
     }
     this.IS_FETCHING_AJAX = true;
-    this.props.ajaxDataFetch(this.state.rawDataSource).then((dataSourceFromAjax) => {
+    this.props.ajaxDataFetch(this.state.rawDataSource,this.state.searchString).then((dataSourceFromAjax) => {
       this.IS_FETCHING_AJAX = false;
       self.setState({
         ajaxError: false,
@@ -526,7 +538,7 @@ class ReactSuperSelect extends React.Component {
         return;
     }
     const self = this;
-    this.props.pageDataFetch(this.state.rawDataSource).then((dataSourceFromPageFetch) => {
+    this.props.pageDataFetch(this.state.rawDataSource,this.state.searchString).then((dataSourceFromPageFetch) => {
       self.setState({
         ajaxError: false,
         data: self._configureDataSource(dataSourceFromPageFetch),
@@ -960,11 +972,7 @@ class ReactSuperSelect extends React.Component {
   // handler for searchInput's onChange event
   _handleSearch(event) {
     this._arrestEvent(event);
-    this.setState({
-      searchString: event.target.value
-    }, () => {
-      this.props.onSearchInputChange(this.state.searchString);
-    });
+    this._searchInputChange(event.target.value)
   }
 
   // return the boolean used to determine whether an option should have the 'r-ss-selected' class
@@ -1328,7 +1336,7 @@ class ReactSuperSelect extends React.Component {
         this._updateFocusedId(parseInt(this.lastUserSelectedOption.getAttribute('data-option-index'), 10));
       }
       if (this.props.searchable && this.props.clearSearchOnSelection) {
-        this.props.onSearchInputChange(this.state.searchString);
+        this._searchInputChange('')
       }
       this._broadcastChange();
     });
@@ -1426,7 +1434,8 @@ ReactSuperSelect.defaultProps = {
   noResultsString: 'No Results Available',
   placeholder: 'Select an Option',
   searchPlaceholder: 'Search',
-  tagRemoveLabelString: 'Remove Tag'
+  tagRemoveLabelString: 'Remove Tag',
+  ajaxSearch: false
 };
 
 // Properties
@@ -1528,6 +1537,9 @@ ReactSuperSelect.propTypes = {
   // **ajaxDataFetch** (Function) (*optional - but **dataSource** must be supplied if undefined*) - Your select dropdown's data may be fetched via ajax if you provide a function as the value for this option.
   // The function takes no arguments, but it must return a **promise** object. (i.e. an object with a then function).  The promise must resolve with a value meeting the description of the **dataSource** option documentation. The **dataSource** option should be left undefined when using this option.
   ajaxDataFetch: PropTypes.func,
+
+  // **ajaxSearch** (Boolean) *optional* - search input forces an ajax reload instead of searching current loaded items
+  ajaxSearch: PropTypes.bool,
 
   // **controlId** (String) *optional* - used to generate aria accessibility labels. The control will generate a default value when this prop is left undefined but this prop should be used for apps with isomorphic rendering
   controlId: PropTypes.string,
